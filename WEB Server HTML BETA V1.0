@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Automação da Liberação das Turmas da JMF</title>
+<title>LiberaTech Escolar</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body {font-family: Arial,sans-serif;background: #f8f8f8;margin:0;min-height:100vh;}
@@ -16,7 +16,6 @@ h2 {font-size:1rem;color:#555;margin:0 0 14px 0;font-weight:normal;}
 .grupo-botoes {display:flex;justify-content:center;align-items:center;margin-bottom:10px;}
 .botao {padding:6px 12px;margin:2px 5px;font-size:.95rem;border:none;border-radius:5px;cursor:pointer;}
 .liberar {background:#4CAF50;color:#fff;}
-.cancelar {background:#f44336;color:#fff;}
 .reiniciar {background:#1976d2;color:#fff;margin-bottom:12px;}
 .estado {font-weight:bold;margin-left:8px;font-size:.95rem;display:none;}
 #sinal {display:none;}
@@ -30,7 +29,7 @@ h2 {font-size:1rem;color:#555;margin:0 0 14px 0;font-weight:normal;}
 </head>
 <body>
 <div class="container">
-    <h1>Automação da Liberação das Turmas da JMF</h1>
+    <h1>LiberaTech Escolar</h1>
     <h2>Rian de Souza Mendonça e Felipe Martins</h2>
     <button id="btn-reiniciar" class="botao reiniciar">Reiniciar Sistema</button>
     <div id="cronometro-container">
@@ -64,19 +63,20 @@ const grupos = [
 ];
 
 let cronometroInterval = null, cronometroRestante = 0, turmaCronometro = null;
-let turmaParaCancelar = null, turmaParaLiberar = null, modoConfirmacao = "";
+let turmaParaLiberar = null, modoConfirmacao = "";
 let liberacoesAntesDoTempo = 0, totalTurmas = 12;
-const RESET_HORAS = 8, RESET_MS = RESET_HORAS*60*60*1000;
+const RESET_HORAS = 8, RESET_MS = RESET_HORAS * 60 * 60 * 1000;
+
 function atualizaUltimaAlteracao() { localStorage.setItem('lastUpdate', Date.now()); }
 function verificaResetAutomatico() {
-    const last = parseInt(localStorage.getItem('lastUpdate'),10) || 0;
+    const last = parseInt(localStorage.getItem('lastUpdate'), 10) || 0;
     if (Date.now() - last >= RESET_MS) resetarSistema();
 }
 function agendaResetProximo() {
-    const last = parseInt(localStorage.getItem('lastUpdate'),10) || 0;
+    const last = parseInt(localStorage.getItem('lastUpdate'), 10) || 0;
     const tempoParaReset = Math.max(0, RESET_MS - (Date.now() - last));
     if (window.resetTimeout) clearTimeout(window.resetTimeout);
-    window.resetTimeout = setTimeout(resetarSistema, tempoParaReset+1000);
+    window.resetTimeout = setTimeout(resetarSistema, tempoParaReset + 1000);
 }
 function setEstadoTurma(id, estado, cor) {
     const e = document.getElementById('estado' + id);
@@ -94,9 +94,9 @@ function emitirSinal(sinal) {
     document.getElementById('sinal').textContent = "Sinal: "+sinal;
 }
 function formatarTempo(seg){
-    let m=Math.floor(seg/60).toString().padStart(2,0),
-        s=(seg%60).toString().padStart(2,0);
-    return m+":"+s;
+    let m = Math.floor(seg / 60).toString().padStart(2, '0'),
+        s = (seg % 60).toString().padStart(2, '0');
+    return m + ":" + s;
 }
 function saveCronometroState() {
     if (turmaCronometro && cronometroRestante > 0) {
@@ -114,65 +114,43 @@ function loadCronometroState() {
     const cronState = JSON.parse(localStorage.getItem('cronometroState') || 'null');
     if (cronState && cronState.turma && cronState.fim > Date.now()) {
         turmaCronometro = cronState.turma;
-        cronometroRestante = Math.max(0, Math.ceil((cronState.fim - Date.now())/1000));
+        cronometroRestante = Math.max(0, Math.ceil((cronState.fim - Date.now()) / 1000));
         return true;
     }
     localStorage.removeItem('cronometroState');
     return false;
 }
 function iniciarCronometro(turma){
-    cronometroRestante=120; turmaCronometro=turma; atualizarCronometro();
-    document.getElementById('cronometro-container').style.display="block";
+    cronometroRestante = 120;
+    turmaCronometro = turma;
+    document.getElementById('cronometro-container').style.display = "block";
     saveCronometroState();
-    if(cronometroInterval)clearInterval(cronometroInterval);
-    cronometroInterval=setInterval(()=>{
+    if(cronometroInterval) clearInterval(cronometroInterval);
+    cronometroInterval = setInterval(() => {
         cronometroRestante--;
-        atualizarCronometro();
+        document.getElementById('cronometro').textContent = formatarTempo(cronometroRestante);
         saveCronometroState();
-        if(cronometroRestante<=0){
-            clearInterval(cronometroInterval);cronometroInterval=null;
-            esconderCronometro();turmaCronometro=null;
+        if(cronometroRestante <= 0){
+            clearInterval(cronometroInterval);
+            cronometroInterval = null;
+            document.getElementById('cronometro-container').style.display = "none";
+            turmaCronometro = null;
             saveCronometroState();
         }
-    },1000);
-}
-function atualizarCronometro(){
-    document.getElementById('cronometro').textContent=formatarTempo(cronometroRestante);
-}
-function esconderCronometro(){
-    document.getElementById('cronometro-container').style.display="none";
-    localStorage.removeItem('cronometroState');
-}
-function liberar(num){
-    setEstadoTurma(num, "Liberado", "#4CAF50");
-    emitirSinal("H"+num);
-    iniciarCronometro(num);
-}
-function mostrarModalConfirmacao(tipo,turma=null){
-    modoConfirmacao=tipo;
-    if(tipo==="cancelar"){turmaParaCancelar=turma;document.getElementById('modal-pergunta').textContent="Confirmar cancelamento?";}
-    else if(tipo==="liberar"){turmaParaLiberar=turma;document.getElementById('modal-pergunta').textContent="Liberar antes do tempo?";}
-    else if(tipo==="liberarTodas"){document.getElementById('modal-pergunta').textContent="Liberar todas?";}
-    else if(tipo==="reiniciar"){document.getElementById('modal-pergunta').textContent="Reiniciar sistema? Todas as turmas serão resetadas.";}
-    document.getElementById('modal-confirmacao').style.display='flex';
-}
-function esconderModalConfirmacao(){
-    document.getElementById('modal-confirmacao').style.display='none';
-    turmaParaCancelar=null;turmaParaLiberar=null;modoConfirmacao="";
-}
-function cancelarConfirmado(num){
-    setEstadoTurma(num, "Cancelado", "#f44336");
-    emitirSinal("L"+num);
-    if(turmaCronometro===num){
-        if(cronometroInterval){
-            clearInterval(cronometroInterval);cronometroInterval=null;
-        }
-        esconderCronometro();turmaCronometro=null; saveCronometroState();
-    }
+    }, 1000);
 }
 function tentarLiberar(num){
-    if(cronometroRestante<=0||cronometroInterval===null){liberacoesAntesDoTempo=0;liberar(num);}
-    else{liberacoesAntesDoTempo++;if(liberacoesAntesDoTempo<4)mostrarModalConfirmacao("liberar",num);else mostrarModalConfirmacao("liberarTodas");}
+    if(cronometroRestante <= 0 || cronometroInterval === null){
+        liberacoesAntesDoTempo = 0;
+        liberarConfirmado(num);
+    } else {
+        liberacoesAntesDoTempo++;
+        if(liberacoesAntesDoTempo < 4) {
+            mostrarModalConfirmacao("liberar", num);
+        } else {
+            mostrarModalConfirmacao("liberarTodas");
+        }
+    }
 }
 function liberarConfirmado(num){
     setEstadoTurma(num, "Liberado", "#4CAF50");
@@ -180,58 +158,83 @@ function liberarConfirmado(num){
     iniciarCronometro(num);
 }
 function liberarTodasAsTurmas(){
-    for(let i=1;i<=totalTurmas;i++){
+    for(let i = 1; i <= totalTurmas; i++){
         setEstadoTurma(i, "Liberado", "#4CAF50");
     }
     emitirSinal("H13");
-    if(cronometroInterval){
-        clearInterval(cronometroInterval);cronometroInterval=null;
-    }
-    esconderCronometro();turmaCronometro=null;liberacoesAntesDoTempo=0; saveCronometroState();
+    if(cronometroInterval) clearInterval(cronometroInterval);
+    cronometroInterval = null;
+    document.getElementById('cronometro-container').style.display = "none";
+    turmaCronometro = null;
+    liberacoesAntesDoTempo = 0;
+    saveCronometroState();
 }
 function resetarSistema(){
     localStorage.removeItem('estadosTurmas');
     localStorage.removeItem('cronometroState');
     localStorage.setItem('lastUpdate', Date.now());
-    for(let i=1;i<=totalTurmas;i++){
-        const e = document.getElementById('estado'+i);
-        if(e){ e.textContent=""; e.style.display="none"; }
+    for(let i = 1; i <= totalTurmas; i++){
+        const e = document.getElementById('estado' + i);
+        if(e){
+            e.textContent = "";
+            e.style.display = "none";
+        }
     }
     if(cronometroInterval){
-        clearInterval(cronometroInterval);cronometroInterval=null;
+        clearInterval(cronometroInterval);
+        cronometroInterval = null;
     }
-    esconderCronometro();turmaCronometro=null;liberacoesAntesDoTempo=0;
+    document.getElementById('cronometro-container').style.display = "none";
+    turmaCronometro = null;
+    liberacoesAntesDoTempo = 0;
     agendaResetProximo();
 }
-document.addEventListener('DOMContentLoaded',function(){
+function mostrarModalConfirmacao(tipo, turma = null){
+    modoConfirmacao = tipo;
+    if(tipo === "liberar"){
+        turmaParaLiberar = turma;
+        document.getElementById('modal-pergunta').textContent = "Liberar antes do tempo?";
+    } else if(tipo === "liberarTodas"){
+        document.getElementById('modal-pergunta').textContent = "Liberar todas?";
+    } else if(tipo === "reiniciar"){
+        document.getElementById('modal-pergunta').textContent = "Reiniciar sistema? Todas as turmas serão resetadas.";
+    }
+    document.getElementById('modal-confirmacao').style.display = 'flex';
+}
+function esconderModalConfirmacao(){
+    document.getElementById('modal-confirmacao').style.display = 'none';
+    turmaParaLiberar = null;
+    modoConfirmacao = "";
+}
+
+document.addEventListener('DOMContentLoaded', function(){
     const turmasContainer = document.getElementById("turmas-container");
-    grupos.forEach(grupo=>{
+    grupos.forEach(grupo => {
         const grupoDiv = document.createElement("div");
         grupoDiv.innerHTML = `<div class="grupo-titulo">${grupo.titulo}</div>`;
-        grupo.turmas.forEach(({id,nome})=>{
+        grupo.turmas.forEach(({id, nome}) => {
             let turmaDiv = document.createElement("div");
             turmaDiv.innerHTML = `<div class="turma-titulo">${nome}</div>`;
             const botoesDiv = document.createElement("div");
             botoesDiv.className = "grupo-botoes";
+
             const btnLiberar = document.createElement("button");
             btnLiberar.className = "botao liberar";
             btnLiberar.textContent = "Liberar";
             btnLiberar.addEventListener("click", () => tentarLiberar(id));
-            const btnCancelar = document.createElement("button");
-            btnCancelar.className = "botao cancelar";
-            btnCancelar.textContent = "Cancelar";
-            btnCancelar.addEventListener("click", () => mostrarModalConfirmacao("cancelar", id));
+
             const estadoSpan = document.createElement("span");
             estadoSpan.id = "estado" + id;
             estadoSpan.className = "estado";
+
             botoesDiv.appendChild(btnLiberar);
-            botoesDiv.appendChild(btnCancelar);
             botoesDiv.appendChild(estadoSpan);
             turmaDiv.appendChild(botoesDiv);
             grupoDiv.appendChild(turmaDiv);
         });
         turmasContainer.appendChild(grupoDiv);
     });
+
     let estadosSalvos = JSON.parse(localStorage.getItem('estadosTurmas') || '{}');
     for (let id in estadosSalvos) {
         let e = document.getElementById('estado' + id);
@@ -241,32 +244,42 @@ document.addEventListener('DOMContentLoaded',function(){
             e.style.display = "inline-block";
         }
     }
+
     if (loadCronometroState()) {
-        document.getElementById('cronometro-container').style.display="block";
-        atualizarCronometro();
-        if(cronometroInterval)clearInterval(cronometroInterval);
-        cronometroInterval=setInterval(()=>{
+        document.getElementById('cronometro-container').style.display = "block";
+        document.getElementById('cronometro').textContent = formatarTempo(cronometroRestante);
+        if(cronometroInterval) clearInterval(cronometroInterval);
+        cronometroInterval = setInterval(() => {
             cronometroRestante--;
-            atualizarCronometro();
+            document.getElementById('cronometro').textContent = formatarTempo(cronometroRestante);
             saveCronometroState();
-            if(cronometroRestante<=0){
-                clearInterval(cronometroInterval);cronometroInterval=null;
-                esconderCronometro();turmaCronometro=null;
+            if(cronometroRestante <= 0){
+                clearInterval(cronometroInterval);
+                cronometroInterval = null;
+                document.getElementById('cronometro-container').style.display = "none";
+                turmaCronometro = null;
                 saveCronometroState();
             }
-        },1000);
+        }, 1000);
     }
+
     document.getElementById('btn-reiniciar').addEventListener('click', function(){
         mostrarModalConfirmacao("reiniciar");
     });
-    document.getElementById('btn-confirmar-sim').onclick=function(){
-        if(modoConfirmacao==="cancelar"&&turmaParaCancelar!==null)cancelarConfirmado(turmaParaCancelar);
-        else if(modoConfirmacao==="liberar"&&turmaParaLiberar!==null)liberarConfirmado(turmaParaLiberar);
-        else if(modoConfirmacao==="liberarTodas")liberarTodasAsTurmas();
-        else if(modoConfirmacao==="reiniciar")resetarSistema();
+    document.getElementById('btn-confirmar-sim').onclick = function(){
+        if(modoConfirmacao === "liberar" && turmaParaLiberar !== null){
+            liberarConfirmado(turmaParaLiberar);
+        } else if(modoConfirmacao === "liberarTodas"){
+            liberarTodasAsTurmas();
+        } else if(modoConfirmacao === "reiniciar"){
+            resetarSistema();
+        }
         esconderModalConfirmacao();
     };
-    document.getElementById('btn-confirmar-nao').onclick=function(){esconderModalConfirmacao();};
+    document.getElementById('btn-confirmar-nao').onclick = function(){
+        esconderModalConfirmacao();
+    };
+
     verificaResetAutomatico();
     agendaResetProximo();
 });
