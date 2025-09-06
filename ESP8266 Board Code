@@ -1,0 +1,59 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+// 1. Alterar o nome e a senha da sua rede Wi-Fi aqui
+// 1. Change your Wi-Fi network name and password here
+const char* ssid = "SEU_SSID";
+const char* password = "SUA_SENHA";
+
+// 2. Verificar e mudar o pino GPIO ao qual o LED está conectado
+// 2. Check and change the GPIO pin to which the LED is connected
+const int LED_PIN = 2; 
+
+// 3. Mudar apenas o último número do IP para cada placa. Exemplo para a turma 1: (192, 168, 1, 101)
+// 3. Change only the last number of the IP for each board. Example for class 1: (192, 168, 1, 101)
+IPAddress staticIP(192, 168, 1, 101);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+
+ESP8266WebServer server(80);
+
+void handleLiberar() {
+  digitalWrite(LED_PIN, HIGH);
+  server.send(200, "text/plain", "Comando recebido: LED aceso.");
+}
+
+void handleRoot() {
+  server.send(200, "text/plain", "NodeMCU ESP8266 online. Aguardando comando.");
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(10);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
+  WiFi.config(staticIP, gateway, subnet);
+  Serial.print("Conectando-se à rede: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi conectado!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.on("/liberar", handleLiberar);
+
+  server.begin();
+  Serial.println("Servidor HTTP iniciado");
+}
+
+void loop() {
+  server.handleClient();
+}
